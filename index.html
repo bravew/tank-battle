@@ -200,6 +200,269 @@
     gridHelper.position.y = 0.015;
     scene.add(gridHelper);
 
+    const decorationGroup = new THREE.Group();
+    scene.add(decorationGroup);
+    const waterLayers = [];
+    const flagMeshes = [];
+
+    function makeBarkTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#5b3720';
+      ctx.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 1600; i++) {
+        const dark = Math.random() < 0.56;
+        ctx.strokeStyle = dark ? 'rgba(34, 18, 8, 0.58)' : 'rgba(154, 101, 58, 0.46)';
+        ctx.lineWidth = 1 + Math.random() * 3;
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const len = 8 + Math.random() * 38;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (Math.random() * 7 - 3.5), y + len);
+        ctx.stroke();
+      }
+      for (let i = 0; i < 18; i++) {
+        ctx.fillStyle = 'rgba(28, 15, 7, 0.5)';
+        ctx.beginPath();
+        ctx.ellipse(Math.random() * 256, Math.random() * 256, 4 + Math.random() * 8, 8 + Math.random() * 16, Math.random() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2, 1);
+      return tex;
+    }
+
+    function makeLeafTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#245d20';
+      ctx.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 1500; i++) {
+        const color = new THREE.Color(0x2f8f2a);
+        const hsl = {};
+        color.getHSL(hsl);
+        hsl.h = (hsl.h + (Math.random() * 0.10 - 0.05) + 1) % 1;
+        hsl.s = Math.min(1, Math.max(0.35, hsl.s + (Math.random() * 0.20 - 0.10)));
+        hsl.l = Math.min(0.74, Math.max(0.18, hsl.l + (Math.random() * 0.30 - 0.15)));
+        ctx.fillStyle = color.setHSL(hsl.h, hsl.s, hsl.l).getStyle();
+        ctx.globalAlpha = 0.34 + Math.random() * 0.58;
+        const rx = 2 + Math.random() * 7;
+        const ry = 2 + Math.random() * 6;
+        ctx.beginPath();
+        ctx.ellipse(Math.random() * 256, Math.random() * 256, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function makeWaterTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 256, 256);
+      gradient.addColorStop(0, '#1d6a94');
+      gradient.addColorStop(0.48, '#2a95c7');
+      gradient.addColorStop(1, '#155a86');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 240; i++) {
+        const y = Math.random() * 256;
+        const phase = Math.random() * Math.PI * 2;
+        const amp = 2 + Math.random() * 7;
+        ctx.strokeStyle = Math.random() < 0.5 ? 'rgba(190, 236, 255, 0.32)' : 'rgba(8, 48, 76, 0.30)';
+        ctx.lineWidth = 1 + Math.random() * 2;
+        ctx.beginPath();
+        for (let x = 0; x <= 256; x += 16) {
+          const yy = y + Math.sin(x * 0.045 + phase) * amp;
+          if (x === 0) ctx.moveTo(x, yy);
+          else ctx.lineTo(x, yy);
+        }
+        ctx.stroke();
+      }
+      for (let i = 0; i < 180; i++) {
+        ctx.fillStyle = `rgba(230, 250, 255, ${0.12 + Math.random() * 0.38})`;
+        ctx.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 3, 1 + Math.random() * 2);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(3, 1);
+      return tex;
+    }
+
+    function makeFlagTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 256, 0);
+      gradient.addColorStop(0, '#d81f26');
+      gradient.addColorStop(0.5, '#f02b30');
+      gradient.addColorStop(1, '#b8141c');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 256, 128);
+      for (let i = 0; i < 48; i++) {
+        ctx.strokeStyle = `rgba(0, 0, 0, ${0.035 + Math.random() * 0.06})`;
+        ctx.lineWidth = 1 + Math.random() * 3;
+        const x = Math.random() * 256;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.bezierCurveTo(x + 12, 42, x - 12, 86, x + 6, 128);
+        ctx.stroke();
+      }
+      const drawStar = (cx, cy, points, outer, inner) => {
+        ctx.beginPath();
+        for (let i = 0; i < points * 2; i++) {
+          const radius = i % 2 === 0 ? outer : inner;
+          const angle = (Math.PI / points) * i - Math.PI / 2;
+          const x = cx + Math.cos(angle) * radius;
+          const y = cy + Math.sin(angle) * radius;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+      };
+      ctx.fillStyle = '#ffd83d';
+      ctx.shadowColor = 'rgba(255, 205, 0, 0.85)';
+      ctx.shadowBlur = 14;
+      drawStar(74, 64, 5, 36, 15);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255, 235, 180, 0.55)';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(3, 3, 250, 122);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createTree(x, z) {
+      const group = new THREE.Group();
+      const trunkHeight = TILE * (1.05 + Math.random() * 0.55);
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(TILE * 0.085, TILE * 0.14, trunkHeight, 12),
+        new THREE.MeshStandardMaterial({ map: makeBarkTexture(), roughness: 0.92, metalness: 0.0 })
+      );
+      trunk.position.y = trunkHeight / 2;
+      group.add(trunk);
+      const layers = 2 + Math.floor(Math.random() * 2);
+      let y = trunkHeight * 0.72;
+      for (let i = 0; i < layers; i++) {
+        const size = Math.max(TILE * 0.34, TILE * (0.78 - i * 0.15 + Math.random() * 0.10));
+        const canopy = new THREE.Mesh(
+          new THREE.SphereGeometry(size, 16, 12),
+          new THREE.MeshStandardMaterial({ map: makeLeafTexture(), flatShading: true, roughness: 0.84, metalness: 0.0 })
+        );
+        canopy.position.set(
+          (Math.random() - 0.5) * TILE * 0.18,
+          y + size * 0.42,
+          (Math.random() - 0.5) * TILE * 0.18
+        );
+        group.add(canopy);
+        y += size * 0.68;
+      }
+      group.position.set(x, 0, z);
+      group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      decorationGroup.add(group);
+    }
+
+    function createFlag(x, z, scale = 1, phase = Math.random() * Math.PI * 2) {
+      const group = new THREE.Group();
+      const poleHeight = 4.6 * scale;
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08 * scale, 0.13 * scale, poleHeight, 12),
+        new THREE.MeshStandardMaterial({ color: 0x9aa3b2, roughness: 0.32, metalness: 0.78 })
+      );
+      pole.position.y = poleHeight / 2;
+      const width = 2.0 * scale;
+      const height = 1.2 * scale;
+      const flagGeo = new THREE.PlaneGeometry(width, height, 16, 10);
+      const flag = new THREE.Mesh(
+        flagGeo,
+        new THREE.MeshStandardMaterial({ map: makeFlagTexture(), side: THREE.DoubleSide, roughness: 0.62, metalness: 0.02 })
+      );
+      flag.position.set(width / 2 + 0.12 * scale, poleHeight - 0.82 * scale, 0);
+      group.add(pole, flag);
+      group.position.set(x, 0, z);
+      group.rotation.y = Math.atan2(-x, -z);
+      group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      decorationGroup.add(group);
+      flagMeshes.push({
+        mesh: flag,
+        base: flagGeo.attributes.position.array.slice(),
+        width,
+        height,
+        phase,
+        speed: 3.6 + Math.random() * 0.8
+      });
+    }
+
+    function decorateScene() {
+      const treeCount = 10 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < treeCount; i++) {
+        const side = Math.floor(Math.random() * 4);
+        let x, z;
+        if (side === 0) {
+          x = (Math.random() * 2 - 1) * (WORLD_W / 2 + 3.2 + Math.random() * 0.5);
+          z = -(WORLD_H / 2 + 3.1 + Math.random() * 0.5);
+        } else if (side === 1) {
+          x = WORLD_W / 2 + 2.2 + Math.random() * 1.6;
+          z = (Math.random() * 2 - 1) * (WORLD_H / 2 + 1.4);
+        } else if (side === 2) {
+          x = (Math.random() * 2 - 1) * (WORLD_W / 2 + 2.6);
+          z = WORLD_H / 2 + 2.2 + Math.random() * 1.6;
+        } else {
+          x = -(WORLD_W / 2 + 2.2 + Math.random() * 1.6);
+          z = (Math.random() * 2 - 1) * (WORLD_H / 2 + 1.4);
+        }
+        createTree(x, z);
+      }
+
+      const riverZ = -(WORLD_H / 2 + 1.7);
+      const riverGeo = new THREE.PlaneGeometry(WORLD_W + 6, 2.4);
+      const waterA = new THREE.MeshStandardMaterial({
+        map: makeWaterTexture(),
+        transparent: true,
+        opacity: 0.74,
+        roughness: 0.18,
+        metalness: 0.16,
+        depthWrite: false
+      });
+      const waterB = new THREE.MeshStandardMaterial({
+        map: makeWaterTexture(),
+        transparent: true,
+        opacity: 0.46,
+        roughness: 0.22,
+        metalness: 0.12,
+        depthWrite: false
+      });
+      const riverA = new THREE.Mesh(riverGeo, waterA);
+      const riverB = new THREE.Mesh(riverGeo, waterB);
+      riverA.rotation.x = -Math.PI / 2;
+      riverB.rotation.x = -Math.PI / 2;
+      riverA.position.set(0, 0.025, riverZ);
+      riverB.position.set(0, 0.045, riverZ);
+      decorationGroup.add(riverA, riverB);
+      waterLayers.push({ texture: waterA.map, speed: 0.28 });
+      waterLayers.push({ texture: waterB.map, speed: -0.19 });
+
+      const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+      for (const [cx, cz] of corners) {
+        createFlag(cx * (WORLD_W / 2 + 2.3), cz * (WORLD_H / 2 + 2.3), 1, Math.random() * Math.PI * 2);
+      }
+      createFlag(2.9, WORLD_H / 2 + 1.6, 1.45, Math.random() * Math.PI * 2);
+    }
+    decorateScene();
+
     const brickGeo = new THREE.BoxGeometry(TILE * 0.94, TILE * 0.74, TILE * 0.94);
     const steelGeo = new THREE.BoxGeometry(TILE * 0.96, TILE * 0.82, TILE * 0.96);
     function makeBrickTexture() {
@@ -314,9 +577,9 @@
     let masterGain = null;
     let musicGain = null;
     let engineGain = null;
+    let engineFilter = null;
     let engineOsc = null;
-    let engineLFO = null;
-    let engineLFOGain = null;
+    let engineOsc2 = null;
     let musicTimer = null;
     let musicNextTime = 0;
     let musicBeat = 0;
@@ -957,6 +1220,11 @@
         musicGain.connect(masterGain);
         engineGain = audioCtx.createGain();
         engineGain.gain.value = 0;
+        engineFilter = audioCtx.createBiquadFilter();
+        engineFilter.type = 'lowpass';
+        engineFilter.frequency.value = 220;
+        engineFilter.Q.value = 0.7;
+        engineFilter.connect(engineGain);
         engineGain.connect(masterGain);
         const len = audioCtx.sampleRate * 0.5;
         noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
@@ -1071,34 +1339,31 @@
     function startEngine() {
       if (engineOsc) return;
       ensureAudio();
-      if (!audioCtx || !engineGain) return;
+      if (!audioCtx || !engineGain || !engineFilter) return;
       const t = audioCtx.currentTime;
       engineOsc = audioCtx.createOscillator();
-      engineOsc.type = 'square';
-      engineOsc.frequency.value = 110;
-      engineGain.gain.setTargetAtTime(0.025, t, 0.05);
-      engineLFO = audioCtx.createOscillator();
-      engineLFO.type = 'sine';
-      engineLFO.frequency.value = 8;
-      engineLFOGain = audioCtx.createGain();
-      engineLFOGain.gain.value = 0.0125;
-      engineLFO.connect(engineLFOGain).connect(engineGain.gain);
-      engineOsc.connect(engineGain);
+      engineOsc.type = 'sine';
+      engineOsc.frequency.value = 55;
+      engineOsc2 = audioCtx.createOscillator();
+      engineOsc2.type = 'triangle';
+      engineOsc2.frequency.value = 110;
+      engineOsc.connect(engineFilter);
+      engineOsc2.connect(engineFilter);
+      engineGain.gain.setTargetAtTime(0.01, t, 0.4);
       engineOsc.start(t);
-      engineLFO.start(t);
+      engineOsc2.start(t);
     }
 
     function stopEngine() {
       if (!engineOsc || !audioCtx) return;
       const t = audioCtx.currentTime;
-      engineGain.gain.setTargetAtTime(0, t, 0.05);
+      engineGain.gain.setTargetAtTime(0, t, 0.4);
       const osc = engineOsc;
-      const lfo = engineLFO;
+      const osc2 = engineOsc2;
       engineOsc = null;
-      engineLFO = null;
-      engineLFOGain = null;
-      osc.stop(t + 0.2);
-      lfo.stop(t + 0.2);
+      engineOsc2 = null;
+      osc.stop(t + 0.4);
+      osc2.stop(t + 0.4);
     }
 
     function playSound(name) {
@@ -1163,6 +1428,19 @@
       const dt = Math.min(clock.getDelta(), 0.05);
       if (state === 'playing') update(dt);
       else elapsed += dt;
+      for (const layer of waterLayers) layer.texture.offset.x += dt * layer.speed;
+      for (const flag of flagMeshes) {
+        const pos = flag.mesh.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = flag.base[i * 3];
+          const y = flag.base[i * 3 + 1];
+          const edge = (x + flag.width / 2) / flag.width;
+          const wave = Math.sin(x * 2.4 + y * 1.2 + elapsed * flag.speed + flag.phase) * 0.16 * flag.width * edge;
+          pos.setZ(i, flag.base[i * 3 + 2] + wave);
+        }
+        pos.needsUpdate = true;
+        flag.mesh.geometry.computeVertexNormals();
+      }
       if (eagle && eagle.alive) eagle.mesh.rotation.y = Math.sin(elapsed * 0.8) * 0.05;
       renderer.render(scene, camera);
     }
