@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Tank Battle 3D</title>
   <style>
     html, body {
@@ -89,6 +89,59 @@
     .red { color: #ff4d4d; text-shadow: 0 0 10px #ff1a1a; }
     .green { color: #8dff57; text-shadow: 0 0 10px #2dff00; }
     @keyframes blink { 50% { opacity: .15; } }
+    #touchControls {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      pointer-events: none;
+    }
+    .touch-button {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, .42);
+      border: 2px solid rgba(255, 255, 255, .58);
+      color: #fff;
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 20px;
+      touch-action: none;
+      pointer-events: auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, .75);
+      user-select: none;
+    }
+    .touch-button:active {
+      background: rgba(255, 255, 255, .24);
+    }
+    .touch-button.small {
+      width: 52px;
+      height: 52px;
+      font-size: 14px;
+    }
+    .touch-button.fire {
+      right: 28px;
+      bottom: 72px;
+      width: 96px;
+      height: 96px;
+      background: rgba(229, 57, 53, .58);
+      border-color: rgba(255, 125, 125, .82);
+      color: #fff;
+      font-size: 18px;
+    }
+    .touch-button.fire:active {
+      background: rgba(255, 80, 80, .78);
+    }
+    #touchUp { left: 78px; bottom: 154px; }
+    #touchDown { left: 78px; bottom: 26px; }
+    #touchLeft { left: 14px; bottom: 90px; }
+    #touchRight { left: 142px; bottom: 90px; }
+    #touchPause { top: 16px; right: 124px; }
+    #touchMute { top: 16px; right: 56px; }
     #mute {
       position: fixed;
       right: 14px;
@@ -124,6 +177,15 @@
       <p><span class="green">P</span> pause &nbsp;•&nbsp; <span class="green">M</span> mute &nbsp;•&nbsp; <span class="green">ENTER</span> start</p>
       <p class="press">PRESS ENTER TO START</p>
     </div>
+  </div>
+  <div id="touchControls">
+    <button type="button" id="touchUp" class="touch-button">▲</button>
+    <button type="button" id="touchDown" class="touch-button">▼</button>
+    <button type="button" id="touchLeft" class="touch-button">◀</button>
+    <button type="button" id="touchRight" class="touch-button">▶</button>
+    <button type="button" id="touchFire" class="touch-button fire">FIRE</button>
+    <button type="button" id="touchPause" class="touch-button small">II</button>
+    <button type="button" id="touchMute" class="touch-button small">M</button>
   </div>
   <div id="mute">M: SOUND ON</div>
 
@@ -393,7 +455,7 @@
       flag.position.set(width / 2 + 0.12 * scale, poleHeight - 0.82 * scale, 0);
       group.add(pole, flag);
       group.position.set(x, 0, z);
-      group.rotation.y = Math.atan2(-x, -z);
+      group.rotation.y = 0;
       group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       decorationGroup.add(group);
       flagMeshes.push({
@@ -455,11 +517,11 @@
       waterLayers.push({ texture: waterA.map, speed: 0.28 });
       waterLayers.push({ texture: waterB.map, speed: -0.19 });
 
-      const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
-      for (const [cx, cz] of corners) {
-        createFlag(cx * (WORLD_W / 2 + 1.6), cz * (WORLD_H / 2 + 1.6), 1.3, Math.random() * Math.PI * 2);
-      }
-      createFlag(4.8, WORLD_H / 2 - 0.6, 1.6, Math.random() * Math.PI * 2);
+      createFlag(-8, -(WORLD_H / 2 + 1.0), 1.3);
+      createFlag(8, -(WORLD_H / 2 + 1.0), 1.3);
+      createFlag(-5, WORLD_H / 2 + 1.2, 1.3);
+      createFlag(5, WORLD_H / 2 + 1.2, 1.3);
+      createFlag(0, WORLD_H / 2 + 1.2, 1.7);
     }
     decorateScene();
 
@@ -1417,6 +1479,38 @@
       if (state === 'menu' || state === 'gameover' || state === 'victory') startGame(1, true);
       else if (state === 'levelclear') startGame(level + 1, false);
       else if (state === 'paused') togglePause();
+    });
+
+    const touchControls = document.getElementById('touchControls');
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      touchControls.style.display = 'block';
+    }
+    function bindTouchButton(button, onStart, onEnd = () => {}) {
+      button.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        onStart();
+      }, { passive: false });
+      button.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        onEnd();
+      }, { passive: false });
+      button.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        onEnd();
+      }, { passive: false });
+    }
+    bindTouchButton(document.getElementById('touchUp'), () => { keys['ArrowUp'] = true; }, () => { keys['ArrowUp'] = false; });
+    bindTouchButton(document.getElementById('touchDown'), () => { keys['ArrowDown'] = true; }, () => { keys['ArrowDown'] = false; });
+    bindTouchButton(document.getElementById('touchLeft'), () => { keys['ArrowLeft'] = true; }, () => { keys['ArrowLeft'] = false; });
+    bindTouchButton(document.getElementById('touchRight'), () => { keys['ArrowRight'] = true; }, () => { keys['ArrowRight'] = false; });
+    bindTouchButton(document.getElementById('touchFire'), () => { keys['Space'] = true; }, () => { keys['Space'] = false; });
+    bindTouchButton(document.getElementById('touchPause'), () => {
+      if (state === 'playing' || state === 'paused') togglePause();
+    });
+    bindTouchButton(document.getElementById('touchMute'), () => {
+      muted = !muted;
+      muteLabel.textContent = muted ? 'M: SOUND OFF' : 'M: SOUND ON';
+      if (audioCtx && masterGain) masterGain.gain.setTargetAtTime(muted ? 0 : 1, audioCtx.currentTime, 0.02);
     });
 
     buildLevel(1, true);
